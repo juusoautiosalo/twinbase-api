@@ -23,7 +23,7 @@ baseurl = "https://juusoautiosalo.github.io/twinbase-smart-city"
 username = "juusoautiosalo"
 password = os.getenv('GITHUB_TOKEN')
 remoteurl = f"https://{username}:{password}@github.com/{reponame}.git"
-print(remoteurl)
+# print(remoteurl)
 
 app = FastAPI()
 
@@ -40,7 +40,7 @@ class Twin(BaseModel):
 def read_root():
     return {
         "This is a ": "Twinbase API",
-        "See subfolder for documents": "/docs"
+        "See documentation in subfolder": "/docs"
     }
 
 
@@ -86,9 +86,45 @@ def read_twin_global(local_id: str):#, q: Union[str, None] = None):
     # print(doc)
     return doc
 
-@app.put("/twins/{local_id}")
-def update_twin(local_id: str, twin: Twin):
-    print(twin)
+@app.patch("/twins/{local_id}")
+def update_twin(local_id: str, patch: dict):
+    jsonUrl = baseurl + '/' + local_id + '/index.json'
+    # print(jsonUrl)
+    twin = requests.get(jsonUrl).json()
+    twin.update(patch)
+    # print(twin)
+
+    tempdir = 'temporary_directory_for_twinbase_api'
+    curdir = os.getcwd()
+    parentdir = os.path.dirname(curdir)
+    gitdir = os.path.join(parentdir, tempdir)
+
+    try:
+        repo = Repo.clone_from(url=remoteurl, to_path=gitdir)
+    except:
+        repo = Repo(gitdir)
+    # try:
+    assert not repo.bare
+
+    repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
+    repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
+
+
+    twindoc_filepath = gitdir + '/docs/' + local_id + '/index.json'
+    with open(twindoc_filepath, 'w') as jsonfilew:
+        json.dump(twin, jsonfilew, indent=4)
+
+    with open(twindoc_filepath, 'r') as jsonfiler:
+        print(json.load(jsonfiler))
+
+    repo.index.add([twindoc_filepath])
+    
+    repo.index.commit("Update " + twin['name'])
+
+    origin = repo.remote(name="origin")
+    origin.push()
+
+    shutil.rmtree(gitdir)
     return twin
 
 @app.post("/twins/")
@@ -140,16 +176,16 @@ def create_twin(twin: Twin):
     with open(twindoc_filepath, 'r') as jsonfiler:
         print(json.load(jsonfiler))
 
-    print(repo.git.status())
+    # print(repo.git.status())
     repo.index.add([twindoc_filepath])
-    print(repo.git.status())
+    # print(repo.git.status())
     
     repo.index.commit("Initialize " + twin.name)
-    print(repo.git.status())
+    # print(repo.git.status())
     origin = repo.remote(name="origin")
     origin.push()
-    print('\n\nLast status:')
-    print(repo.git.status())
+    # print('\n\nLast status:')
+    # print(repo.git.status())
     # except:
     #     shutil.rmtree(gitdir)
     #     return
@@ -165,3 +201,38 @@ def create_twin(twin: Twin):
 
     shutil.rmtree(gitdir)
     return twin
+
+
+@app.delete("/twins/{local_id}")
+def delete_twin(local_id: str):
+    jsonUrl = baseurl + '/' + local_id + '/index.json'
+    # print(jsonUrl)
+    twin = requests.get(jsonUrl).json()
+
+    tempdir = 'temporary_directory_for_twinbase_api'
+    curdir = os.getcwd()
+    parentdir = os.path.dirname(curdir)
+    gitdir = os.path.join(parentdir, tempdir)
+
+    try:
+        repo = Repo.clone_from(url=remoteurl, to_path=gitdir)
+    except:
+        repo = Repo(gitdir)
+    # try:
+    assert not repo.bare
+
+    repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
+    repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
+
+
+    twindir = gitdir + '/docs/' + local_id
+    shutil.rmtree(twindir)
+
+    repo.index.commit("Delete " + twin['name'])
+
+
+    origin = repo.remote(name="origin")
+    origin.push()
+
+    shutil.rmtree(gitdir)
+    return "Removed " + twin['name']
