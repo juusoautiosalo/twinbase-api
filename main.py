@@ -228,6 +228,8 @@ def delete_twin(local_id: str):
     twindir = gitdir + '/docs/' + local_id
     shutil.rmtree(twindir)
 
+    repo.git.add(all=True)
+
     repo.index.commit("Delete " + twin['name'])
 
 
