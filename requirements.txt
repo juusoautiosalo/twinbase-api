@@ -4,3 +4,8 @@ fastapi
 uvicorn[standard]
 dtweb
 requests
+
+# for authentication
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart # gave error, found from https://fastapi.tiangolo.com/tutorial/security/first-steps/#run-it
