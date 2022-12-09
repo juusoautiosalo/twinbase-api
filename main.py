@@ -25,7 +25,22 @@ password = os.getenv('GITHUB_TOKEN')
 remoteurl = f"https://{username}:{password}@github.com/{reponame}.git"
 # print(remoteurl)
 
-app = FastAPI()
+
+# Metadata for docs
+
+description= f"""
+This page describes an HTTP API for: [{reponame}]({baseurl})
+
+You may send requests with the methods below.
+
+"""
+
+
+app = FastAPI(
+    title = "Twinbase API",
+    description=description,
+    version="0.0.1",
+)
 
 class Twin(BaseModel):
     dt_id: str = Field(alias='dt-id')
