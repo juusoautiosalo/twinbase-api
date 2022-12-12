@@ -50,14 +50,14 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str | None = None
+    username: Union[str, None] = None
 
 
 class User(BaseModel):
     username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
+    email: Union[str, None] = None
+    full_name: Union[str, None] = None
+    disabled: Union[bool, None] = None
 
 
 class UserInDB(User):
@@ -105,7 +105,7 @@ class Twin(BaseModel):
     dt_id: str = Field(alias='dt-id')
     hosting_iri: str = Field(alias='hosting-iri')
     name: str
-    description: str | None = None
+    description: Union[str, None] = None
     local_id: str
     # price: float
     # is_offer: Union[bool, None] = None
@@ -133,7 +133,7 @@ def authenticate_user(fake_db, username: str, password: str):
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
