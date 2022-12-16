@@ -125,11 +125,11 @@ async def favicon():
 
 @app.get("/docs", include_in_schema=False)
 def overridden_swagger():
-	return get_swagger_ui_html(openapi_url="/openapi.json", title="FastAPI", swagger_favicon_url=favicon_path)
+	return get_swagger_ui_html(openapi_url="/openapi.json", title=app.title, swagger_favicon_url=favicon_path)
 
 @app.get("/redoc", include_in_schema=False)
 def overridden_redoc():
-	return get_redoc_html(openapi_url="/openapi.json", title="FastAPI", redoc_favicon_url=favicon_path)
+	return get_redoc_html(openapi_url="/openapi.json", title=app.title, redoc_favicon_url=favicon_path)
 
 
 ### vvvvvvvvv AUTHENTICATION FUNCTIONS AND ENDPOINTS vvvvvvvvvv ###
