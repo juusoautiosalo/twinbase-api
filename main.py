@@ -5,6 +5,8 @@ from typing import Union
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import FileResponse
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field
@@ -99,7 +101,11 @@ app = FastAPI(
     title = "Twinbase API",
     description=description,
     version="0.0.1",
+    docs_url=None,
+    redoc_url=None,
 )
+
+favicon_path = 'favicon.ico'
 
 class Twin(BaseModel):
     dt_id: str = Field(alias='dt-id')
@@ -109,6 +115,21 @@ class Twin(BaseModel):
     local_id: str
     # price: float
     # is_offer: Union[bool, None] = None
+
+"""
+   Favicon endpoints
+"""
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(favicon_path)
+
+@app.get("/docs", include_in_schema=False)
+def overridden_swagger():
+	return get_swagger_ui_html(openapi_url="/openapi.json", title="FastAPI", swagger_favicon_url=favicon_path)
+
+@app.get("/redoc", include_in_schema=False)
+def overridden_redoc():
+	return get_redoc_html(openapi_url="/openapi.json", title="FastAPI", redoc_favicon_url=favicon_path)
 
 
 ### vvvvvvvvv AUTHENTICATION FUNCTIONS AND ENDPOINTS vvvvvvvvvv ###
