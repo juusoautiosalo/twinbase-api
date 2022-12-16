@@ -82,9 +82,10 @@ baseurl = "https://juusoautiosalo.github.io/twinbase-smart-city"
 username = "juusoautiosalo"
 password = os.getenv('GITHUB_TOKEN')
 if not password:
-    print('Twinbase API WARNING: GitHub token not set, modifications will not work!')
-remoteurl = f"https://{username}:{password}@github.com/{reponame}.git"
-# print(remoteurl)
+    print('Twinbase API WARNING: GitHub token not set. SSH may still work.')
+remoteurl_https = f"https://{username}:{password}@github.com/{reponame}.git"
+remoteurl_ssh = "git@github.com:" + reponame + ".git"
+# print(remoteurl_ssh)
 
 
 # Metadata for docs
@@ -278,9 +279,12 @@ async def update_twin(local_id: str, patch: dict, current_user: User = Depends(g
     gitdir = os.path.join(parentdir, tempdir)
 
     try:
-        repo = Repo.clone_from(url=remoteurl, to_path=gitdir)
+        repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
     except:
-        repo = Repo(gitdir)
+        try:
+            Repo.clone_from(url=remoteurl_https, to_path=gitdir)
+        except:
+            repo = Repo(gitdir)
     # try:
     assert not repo.bare
 
@@ -329,9 +333,12 @@ async def create_twin(twin: Twin, current_user: User = Depends(get_current_activ
     # repo = Repo.clone_from(url=twinbase_repourl + '.git', to_path='.')
 
     try:
-        repo = Repo.clone_from(url=remoteurl, to_path=gitdir)
+        repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
     except:
-        repo = Repo(gitdir)
+        try:
+            Repo.clone_from(url=remoteurl_https, to_path=gitdir)
+        except:
+            repo = Repo(gitdir)
     # try:
     assert not repo.bare
 
@@ -393,9 +400,12 @@ async def delete_twin(local_id: str, current_user: User = Depends(get_current_ac
     gitdir = os.path.join(parentdir, tempdir)
 
     try:
-        repo = Repo.clone_from(url=remoteurl, to_path=gitdir)
+        repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
     except:
-        repo = Repo(gitdir)
+        try:
+            Repo.clone_from(url=remoteurl_https, to_path=gitdir)
+        except:
+            repo = Repo(gitdir)
     # try:
     assert not repo.bare
 
