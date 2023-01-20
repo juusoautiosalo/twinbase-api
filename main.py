@@ -28,7 +28,6 @@ if not password:
     print('Twinbase API WARNING: GitHub token not set. SSH may still work.')
 remoteurl_https = f"https://{username}:{password}@github.com/{reponame}.git"
 remoteurl_ssh = "git@github.com:" + reponame + ".git"
-# print(remoteurl)
 
 
 # Metadata for docs
@@ -55,12 +54,9 @@ class Twin(BaseModel):
     name: str
     description: str | None = None
     local_id: str
-    # price: float
-    # is_offer: Union[bool, None] = None
 
-"""
-   Favicon endpoints
-"""
+# Favicon endpoints
+
 favicon_path = 'favicon.ico'
 
 @app.get('/favicon.ico', include_in_schema=False)
@@ -76,6 +72,8 @@ def overridden_redoc():
 	return get_redoc_html(openapi_url="/openapi.json", title=app.title, redoc_favicon_url=favicon_path)
 
 
+# Twinbase API starts here
+
 @app.get("/")
 def read_root():
     return {
@@ -83,56 +81,36 @@ def read_root():
         "See documentation in subfolder": "/docs"
     }
 
-
-# @app.get("/items/{item_id}")
-# def read_item(item_id: int, q: Union[str, None] = None):
-#     return {"item_id": item_id, "q": q}
-
-# @app.put("/items/{item_id}")
-# def update_item(item_id: int, item: Item):
-#     return {"item_name": item.name, "item_id": item_id}
-
-# Twinbase API starts here
-
 @app.get("/twins")
-def read_twins():#(local_id: str):#, q: Union[str, None] = None):
+def read_twins():
     listurl = baseurl + "/" + '/index.json'
-    # listurl = baseurl + "/" + local_id + '/index.json'
-    # print(listurl)
     r = requests.get(listurl)
     twins = r.json()['twins']
     return twins
 
 @app.get("/twins/{local_id}")
-def read_twin(local_id: str):#, q: Union[str, None] = None):
+def read_twin(local_id: str):
     jsonUrl = baseurl + "/" + local_id + "/index.json"
     twin = requests.get(jsonUrl).json()
-    # print(twin)
     return twin
 
 @app.get("/twins/{local_id}/github")
-def read_twin_github(local_id: str):#, q: Union[str, None] = None):
+def read_twin_github(local_id: str):
     jsonUrl = "https://raw.githubusercontent.com/" + reponame + "/main/docs/" + local_id + "/index.json"
-    # print(jsonUrl)
     twin = requests.get(jsonUrl).json()
-    # print(twin)
     return twin
 
 @app.get("/twins/{local_id}/global")
-def read_twin_global(local_id: str):#, q: Union[str, None] = None):
+def read_twin_global(local_id: str):
     dt_id = "https://dtid.org/" + local_id
-    # print("DTID is:", dt_id)
     doc = dtweb.client.fetch_dt_doc(dt_id)
-    # print(doc)
     return doc
 
 @app.patch("/twins/{local_id}")
 def update_twin(local_id: str, patch: dict):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
-    # print(jsonUrl)
     twin = requests.get(jsonUrl).json()
     twin.update(patch)
-    # print(twin)
 
     tempdir = 'temporary_directory_for_twinbase_api'
     curdir = os.getcwd()
@@ -146,7 +124,6 @@ def update_twin(local_id: str, patch: dict):
             repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
         except:
             repo = Repo(gitdir)
-    # try:
     assert not repo.bare
 
     repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
@@ -173,25 +150,12 @@ def update_twin(local_id: str, patch: dict):
 @app.post("/twins/")
 def create_twin(twin: Twin):
     twin.local_id = str(uuid.uuid4())
-    # print(twin.local_id)
     twin.dt_id = "https://dtid.org/" + twin.local_id
     twin.hosting_iri = baseurl + "/" + twin.local_id
-
-    # print('Changing to temporary directory')
-    # print(os.getcwd())
-    # os.chdir('..')
     tempdir = 'temporary_directory_for_twinbase_api'
     curdir = os.getcwd()
     parentdir = os.path.dirname(curdir)
     gitdir = os.path.join(parentdir, tempdir)
-    # gitdir = '../' + tempdir
-    # os.mkdir(tempdir)
-    # os.chdir(tempdir)
-    # print(os.getcwd())
-
-    # repo = Repo(os.getcwd())
-    # repo = Repo.base.Repo.clone_from(url=twinbase_repourl + '.git')
-    # repo = Repo.clone_from(url=twinbase_repourl + '.git', to_path='.')
 
     try:
         repo = Repo.clone_from(url=remoteurl_https, to_path=gitdir)
@@ -200,16 +164,11 @@ def create_twin(twin: Twin):
             repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
         except:
             repo = Repo(gitdir)
-    # try:
     assert not repo.bare
 
     # https://stackoverflow.com/questions/50104496/gitpython-unable-to-set-the-git-config-username-and-email
     repo.config_writer().set_value("user", "name", "twinbase-bot").release()
     repo.config_writer().set_value("user", "email", "bot@twinbase.org").release()
-    # repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
-    # repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
-    # reader = repo.config_reader()
-    # field = reader.get_value("user","email")
 
     twindoc_filepath = gitdir + '/docs/' + twin.local_id + '/index.json'
     os.mkdir(gitdir + '/docs/' + twin.local_id)
@@ -222,37 +181,18 @@ def create_twin(twin: Twin):
     with open(twindoc_filepath, 'r') as jsonfiler:
         print(json.load(jsonfiler))
 
-    # print(repo.git.status())
     repo.index.add([twindoc_filepath])
-    # print(repo.git.status())
-    
     repo.index.commit("Initialize " + twin.name)
-    # print(repo.git.status())
     origin = repo.remote(name="origin")
     origin.push()
-    # print('\n\nLast status:')
-    # print(repo.git.status())
-    # except:
-    #     shutil.rmtree(gitdir)
-    #     return
-
-
-
-    # print('Changing back to normal directory')
-    # print(os.getcwd())
-    # os.chdir('..')
-    # os.chdir('twinbase-api')
-    # print(os.getcwd())
 
 
     shutil.rmtree(gitdir)
     return twin
 
-
 @app.delete("/twins/{local_id}")
 def delete_twin(local_id: str):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
-    # print(jsonUrl)
     twin = requests.get(jsonUrl).json()
 
     tempdir = 'temporary_directory_for_twinbase_api'
@@ -267,7 +207,6 @@ def delete_twin(local_id: str):
             repo = Repo.clone_from(url=remoteurl_ssh, to_path=gitdir)
         except:
             repo = Repo(gitdir)
-    # try:
     assert not repo.bare
 
     repo.config_writer().set_value("user", "name", "twinbase-bot").release()
