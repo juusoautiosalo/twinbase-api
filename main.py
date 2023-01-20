@@ -1,14 +1,10 @@
 # Run in bash: uvicorn main:app --reload
 
-from datetime import datetime, timedelta
 from typing import Union
 
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 
 import dtweb
@@ -19,59 +15,6 @@ import os
 from git import Repo
 import shutil
 import json
-
-
-### vvvvvvvvv AUTHENTICATION SETUP vvvvvvvvvv ###
-# to get a string like this run:
-# openssl rand -hex 32
-SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY:
-    print('Twinbase API WARNING: Secret key not set, everything might not work properly!')
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-HASHED_PASSWORD = os.getenv('HASHED_PASSWORD')
-
-if not HASHED_PASSWORD:
-    print('Twinbase API WARNING: Password not set, authentication does not work!')
-
-
-fake_users_db = {
-    "admin": {
-        "username": "admin",
-        "full_name": "Twinbase API administrator",
-        "email": "bot@twinbase.org",
-        "hashed_password": HASHED_PASSWORD,
-        "disabled": False,
-    }
-}
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: Union[str, None] = None
-
-
-class User(BaseModel):
-    username: str
-    email: Union[str, None] = None
-    full_name: Union[str, None] = None
-    disabled: Union[bool, None] = None
-
-
-class UserInDB(User):
-    hashed_password: str
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-### ^^^^^^^^ AUTHENTICATION SETUP ^^^^^^^^^ ###
-
 
 
 twinbase_repourl = "https://github.com/juusoautiosalo/twinbase-smart-city"
@@ -85,7 +28,7 @@ if not password:
     print('Twinbase API WARNING: GitHub token not set. SSH may still work.')
 remoteurl_https = f"https://{username}:{password}@github.com/{reponame}.git"
 remoteurl_ssh = "git@github.com:" + reponame + ".git"
-# print(remoteurl_ssh)
+# print(remoteurl)
 
 
 # Metadata for docs
@@ -99,20 +42,18 @@ You may send requests with the methods below.
 
 
 app = FastAPI(
-    title = "Twinbase API",
+    title = "Twinbase API with SSI auth",
     description=description,
     version="0.0.1",
     docs_url=None,
     redoc_url=None,
 )
 
-favicon_path = 'favicon.ico'
-
 class Twin(BaseModel):
     dt_id: str = Field(alias='dt-id')
     hosting_iri: str = Field(alias='hosting-iri')
     name: str
-    description: Union[str, None] = None
+    description: str | None = None
     local_id: str
     # price: float
     # is_offer: Union[bool, None] = None
@@ -120,6 +61,8 @@ class Twin(BaseModel):
 """
    Favicon endpoints
 """
+favicon_path = 'favicon.ico'
+
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse(favicon_path)
@@ -131,88 +74,6 @@ def overridden_swagger():
 @app.get("/redoc", include_in_schema=False)
 def overridden_redoc():
 	return get_redoc_html(openapi_url="/openapi.json", title=app.title, redoc_favicon_url=favicon_path)
-
-
-### vvvvvvvvv AUTHENTICATION FUNCTIONS AND ENDPOINTS vvvvvvvvvv ###
-# from: https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#update-the-token-path-operation
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-
-
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
-
-
-def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user
-
-
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-
-@app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
-
-### ^^^^^^^^ AUTHENTICATION FUNCTIONS AND ENDPOINTS ^^^^^^^^^ ###
 
 
 @app.get("/")
@@ -266,7 +127,7 @@ def read_twin_global(local_id: str):#, q: Union[str, None] = None):
     return doc
 
 @app.patch("/twins/{local_id}")
-async def update_twin(local_id: str, patch: dict, current_user: User = Depends(get_current_active_user)):
+def update_twin(local_id: str, patch: dict):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
     # print(jsonUrl)
     twin = requests.get(jsonUrl).json()
@@ -288,8 +149,8 @@ async def update_twin(local_id: str, patch: dict, current_user: User = Depends(g
     # try:
     assert not repo.bare
 
-    repo.config_writer().set_value("user", "name", current_user.full_name).release()
-    repo.config_writer().set_value("user", "email", current_user.email).release()
+    repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
+    repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
 
 
     twindoc_filepath = gitdir + '/docs/' + local_id + '/index.json'
@@ -310,7 +171,7 @@ async def update_twin(local_id: str, patch: dict, current_user: User = Depends(g
     return twin
 
 @app.post("/twins/")
-async def create_twin(twin: Twin, current_user: User = Depends(get_current_active_user)):
+def create_twin(twin: Twin):
     twin.local_id = str(uuid.uuid4())
     # print(twin.local_id)
     twin.dt_id = "https://dtid.org/" + twin.local_id
@@ -343,10 +204,10 @@ async def create_twin(twin: Twin, current_user: User = Depends(get_current_activ
     assert not repo.bare
 
     # https://stackoverflow.com/questions/50104496/gitpython-unable-to-set-the-git-config-username-and-email
-    # repo.config_writer().set_value("user", "name", "twinbase-bot").release()
-    # repo.config_writer().set_value("user", "email", "bot@twinbase.org").release()
-    repo.config_writer().set_value("user", "name", current_user.full_name).release()
-    repo.config_writer().set_value("user", "email", current_user.email).release()
+    repo.config_writer().set_value("user", "name", "twinbase-bot").release()
+    repo.config_writer().set_value("user", "email", "bot@twinbase.org").release()
+    # repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
+    # repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
     # reader = repo.config_reader()
     # field = reader.get_value("user","email")
 
@@ -389,7 +250,7 @@ async def create_twin(twin: Twin, current_user: User = Depends(get_current_activ
 
 
 @app.delete("/twins/{local_id}")
-async def delete_twin(local_id: str, current_user: User = Depends(get_current_active_user)):
+def delete_twin(local_id: str):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
     # print(jsonUrl)
     twin = requests.get(jsonUrl).json()
@@ -409,8 +270,8 @@ async def delete_twin(local_id: str, current_user: User = Depends(get_current_ac
     # try:
     assert not repo.bare
 
-    repo.config_writer().set_value("user", "name", current_user.full_name).release()
-    repo.config_writer().set_value("user", "email", current_user.email).release()
+    repo.config_writer().set_value("user", "name", "twinbase-bot").release()
+    repo.config_writer().set_value("user", "email", "bot@twinbase.org").release()
 
 
     twindir = gitdir + '/docs/' + local_id
