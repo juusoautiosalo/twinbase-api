@@ -23,11 +23,49 @@ import copy
 
 IAA_CONF_FILENAME = os.getenv('IAA_CONF_FILENAME', 'IAA.conf')
 OWNER_DID = os.getenv('OWNER_DID', 'did:self:1234oiuerhg98043n9hve')
-PROXY_PASS = os.getenv('PROXY_PASS', 'localhost:8000')
+PROXY_PASS = os.getenv('PROXY_PASS', 'http://127.0.0.1:8000')
 
 LD_ACCESS_REQUIREMENTS = "https://twinschema.org/accessRequirements"
 LD_LOCATION = "http://www.w3.org/2003/01/geo/wgs84_pos#location"
 LD_NEIGHBOURHOOD = "https://saref.etsi.org/saref4city/Neighbourhood"
+
+# Initialize a conf file
+iaa_conf = {
+    "resources": {
+        "/twins": {
+            "authorization": {
+                "type":"jwt-vc-dpop",
+                "trusted_issuers": {
+                    OWNER_DID: {
+                        "issuer_key": OWNER_DID,
+                        "issuer_key_type": "did"
+                    }
+                },
+                "filters": [
+                    ["$.vc.credentialSubject.capabilities.'https://iot-ngin.twinbase.org/twins'[*]", "READ"]
+                ]
+            },
+            "proxy": {
+                "proxy_pass": PROXY_PASS
+            }
+        },
+        "/docs": {
+            "proxy": {
+                "proxy_pass": PROXY_PASS
+            }
+        },
+        "/openapi.json": {
+            "proxy": {
+                "proxy_pass": PROXY_PASS
+            }
+        },
+        "/favicon.ico": {
+            "proxy": {
+                "proxy_pass": PROXY_PASS
+            }
+        }
+    }
+}
 
 # HOX! Use the following line when referring to this! Otherwise the template gets modified.
 # newdict = copy.deepcopy(CONF_TWIN_TEMPLATE)
@@ -121,7 +159,7 @@ def read_root():
     }
 
 @app.get("/update")
-def read_twins():
+def update():
     listurl = baseurl + "/" + '/index.json'
     r = requests.get(listurl)
     twins = r.json()['twins']
@@ -165,9 +203,7 @@ def read_twins():
                 conf = json.load(jsonfiler)
         except FileNotFoundError:
             print('IAA.conf not found, creating new from template.')
-            shutil.copyfile('IAA_template.conf', IAA_CONF_FILENAME)
-            with open(IAA_CONF_FILENAME, 'r') as jsonfiler:
-                conf = json.load(jsonfiler)
+            conf = iaa_conf
         conf_twin = copy.deepcopy(CONF_TWIN_TEMPLATE)
         # print('Conf of this twin: ' + str(conf_twin))
         print('Conf template: ' + str(CONF_TWIN_TEMPLATE))
@@ -197,7 +233,14 @@ def read_twins():
 @app.get("/twins/{local_id}")
 def read_twin(local_id: str):
     jsonUrl = baseurl + "/" + local_id + "/index.json"
-    twin = requests.get(jsonUrl).json()
+    r = requests.get(jsonUrl)
+    if r.status_code == 200:
+        twin = r.json()
+    else:
+        return {
+            'detail': 'error',
+            'status-code': r.status_code
+            }
     return twin
 
 @app.get("/twins/{local_id}/github")
@@ -215,7 +258,14 @@ def read_twin_global(local_id: str):
 @app.patch("/twins/{local_id}")
 def update_twin(local_id: str, patch: dict):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
-    twin = requests.get(jsonUrl).json()
+    r = requests.get(jsonUrl)
+    if r.status_code == 200:
+        twin = r.json()
+    else:
+        return {
+            'detail': 'twin not found',
+            'status-code': r.status_code
+            }
     twin.update(patch)
 
     tempdir = 'temporary_directory_for_twinbase_api'
@@ -299,7 +349,14 @@ def create_twin(twin: Twin):
 @app.delete("/twins/{local_id}")
 def delete_twin(local_id: str):
     jsonUrl = baseurl + '/' + local_id + '/index.json'
-    twin = requests.get(jsonUrl).json()
+    r = requests.get(jsonUrl)
+    if r.status_code == 200:
+        twin = r.json()
+    else:
+        return {
+            'detail': 'twin not found',
+            'status-code': r.status_code
+            }
 
     tempdir = 'temporary_directory_for_twinbase_api'
     curdir = os.getcwd()
@@ -320,7 +377,10 @@ def delete_twin(local_id: str):
 
 
     twindir = gitdir + '/docs/' + local_id
-    shutil.rmtree(twindir)
+    try:
+        shutil.rmtree(twindir)
+    except FileNotFoundError:
+        return {'detail':'twin not found, probably recently deleted'}
 
     repo.git.add(all=True)
 
@@ -332,3 +392,7 @@ def delete_twin(local_id: str):
 
     shutil.rmtree(gitdir)
     return "Removed " + twin['name']
+
+
+# Update conf file at startup
+update()
