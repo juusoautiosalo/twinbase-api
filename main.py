@@ -182,8 +182,6 @@ def read_twins():
             json.dump(conf, jsonfilew, indent=4, ensure_ascii=False)
         conf_twin.clear()
         print(conf_twin)
-        # Something is messed up with this clearing.
-        # Don't know what but it causes filters to appear wrong in the conf file.
         
     return {
         "detail": "Update is not working yet :)"
