@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  twinbase-api:
+    container_name: twinbase-api
+    image: twinbase-api:1.0.0
+    build:
+      context: .
+    environment:
+      SECRET_KEY: ${TWINBASE_API_SECRET_KEY}
+      HASHED_PASSWORD: ${TWINBASE_API_HASHED_PASSWORD}
+      GITHUB_TOKEN: ${TWINBASE_API_GITHUB_TOKEN}
+      OWNER_DID: ${TWINBASE_API_OWNER_DID}
+    ports:
+      - "8000:8000"
