@@ -11,84 +11,13 @@ from pydantic import BaseModel, Field
 import dtweb
 import requests
 import uuid
-from pyld import jsonld
 import pprint
 
 import os
 from git import Repo
 import shutil
 import json
-import copy
-
-
-IAA_CONF_FILENAME = os.getenv('IAA_CONF_FILENAME', 'IAA.conf')
-OWNER_DID = os.getenv('OWNER_DID', 'did:self:1234oiuerhg98043n9hve')
-PROXY_PASS = os.getenv('PROXY_PASS', 'http://127.0.0.1:8000')
-
-LD_ACCESS_REQUIREMENTS = "https://twinschema.org/accessRequirements"
-LD_LOCATION = "http://www.w3.org/2003/01/geo/wgs84_pos#location"
-LD_NEIGHBOURHOOD = "https://saref.etsi.org/saref4city/Neighbourhood"
-
-# Initialize a conf file
-iaa_conf = {
-    "resources": {
-        "/twins": {
-            "authorization": {
-                "type":"jwt-vc-dpop",
-                "trusted_issuers": {
-                    OWNER_DID: {
-                        "issuer_key": OWNER_DID,
-                        "issuer_key_type": "did"
-                    }
-                },
-                "filters": [
-                    ["$.vc.credentialSubject.capabilities.'https://iot-ngin.twinbase.org/twins'[*]", "READ"]
-                ]
-            },
-            "proxy": {
-                "proxy_pass": PROXY_PASS
-            }
-        },
-        "/docs": {
-            "proxy": {
-                "proxy_pass": PROXY_PASS
-            }
-        },
-        "/openapi.json": {
-            "proxy": {
-                "proxy_pass": PROXY_PASS
-            }
-        },
-        "/favicon.ico": {
-            "proxy": {
-                "proxy_pass": PROXY_PASS
-            }
-        }
-    }
-}
-
-# HOX! Use the following line when referring to this! Otherwise the template gets modified.
-# newdict = copy.deepcopy(CONF_TWIN_TEMPLATE)
-CONF_TWIN_TEMPLATE = {
-    "authorization": {
-        "type": "jwt-vc-dpop",
-        "trusted_issuers": {
-            OWNER_DID: {
-                "issuer_key": OWNER_DID,
-                "issuer_key_type": "did"
-            }
-        },
-        "filters": [
-            [
-                "$.vc.credentialSubject.capabilities.'https://iot-ngin.twinbase.org/twins'[*]",
-                "READ"
-            ]
-        ]
-    },
-    "proxy": {
-        "proxy_pass": PROXY_PASS
-    }
-}
+import iaa
 
 twinbase_repourl = "https://github.com/juusoautiosalo/twinbase-smart-city"
 reponame = "juusoautiosalo/twinbase-smart-city"
@@ -165,59 +94,14 @@ def update():
     twins = r.json()['twins']
     for twin in twins:
         print('\nChecking ' + twin['name'])
-        filters = []
         # pprint.pprint(twin)
         try:
             doc = dtweb.client.fetch_dt_doc(twin['dt-id'])
         except:
             print('This twin is not working properly. Probably the DTID is not working.')
             pass
-        expanded_doc = jsonld.expand(doc)
-        # pprint.pprint(expanded_doc)
-        if len(expanded_doc) > 0:
-            # print(expanded_doc[0][LD_LOCATION])
-            if LD_LOCATION in expanded_doc[0]:
-                print(f"Found {LD_LOCATION} from {twin['name']}")
-                loc = expanded_doc[0][LD_LOCATION]
-                if type(loc) is dict:
-                    print('One location definitions found')
-                    print('Value: ' + expanded_doc[0][LD_LOCATION]['@value'])
-                    filters.append(f"{LD_NEIGHBOURHOOD} = {loc['@value']}")
-                elif type(loc) is list:
-                    print('Several location definitions found')
-                    for location in loc:
-                        print(f"Type: {location['@type']} Value: {location['@value']}")
-                        # This @type & @value style was used at least in:
-                        # https://csiro-enviro-informatics.github.io/info-engineering/linked-data-api.html
-                        if location['@type'] == LD_NEIGHBOURHOOD:
-                            print('Found neighbourhood!')
-                            filters.append(f"{LD_NEIGHBOURHOOD} = {location['@value']}")
-                            print('Appended neighbourhood filter.')
-            else:
-                print(f'Found linked data, but not {LD_LOCATION}')
-        else:
-            print('Found no linked data.')
-        # Define twin conf
-        try:
-            with open(IAA_CONF_FILENAME, 'r') as jsonfiler:
-                conf = json.load(jsonfiler)
-        except FileNotFoundError:
-            print('IAA.conf not found, creating new from template.')
-            conf = iaa_conf
-        conf_twin = copy.deepcopy(CONF_TWIN_TEMPLATE)
-        # print('Conf of this twin: ' + str(conf_twin))
-        print('Conf template: ' + str(CONF_TWIN_TEMPLATE))
-        for filter_content in filters:
-            print('Creating filter: ' + filter_content)
-            filter = [f"$.vc.credentialSubject.capabilities.'{filter_content}'[*]", "READ"]
-            conf_twin['authorization']['filters'].append(filter)
-        local_id = twin['dt-id'].split('/')[3]
-        conf['resources']['/twins/'+local_id] = conf_twin
-        # print(conf)
-        with open(IAA_CONF_FILENAME, 'w', encoding='utf-8') as jsonfilew:
-            json.dump(conf, jsonfilew, indent=4, ensure_ascii=False)
-        conf_twin.clear()
-        print(conf_twin)
+        filters = iaa.get_location_filters_for(doc)
+        iaa.configure(twin, filters)
         
     return {
         "detail": "Update is not working yet :)"
