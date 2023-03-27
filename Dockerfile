@@ -16,7 +16,7 @@ RUN python -m pip install -r requirements.txt
 ENV PYTHONUNBUFFERED 1
 
 # Copy necessary files
-COPY main.py .
+COPY main.py iaa.py favicon.ico ./
 
 # Start app with uvicorn
 CMD uvicorn --host 0.0.0.0 --port 8000 main:app
