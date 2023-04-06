@@ -9,8 +9,6 @@ services:
     build:
       context: .
     environment:
-      SECRET_KEY: ${TWINBASE_API_SECRET_KEY}
-      HASHED_PASSWORD: ${TWINBASE_API_HASHED_PASSWORD}
       GITHUB_TOKEN: ${TWINBASE_API_GITHUB_TOKEN}
 
   iaa-configurator:

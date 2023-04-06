@@ -21,8 +21,6 @@ Configure environment variables or `.env` file to match environment variables us
 For example, configure following to file `./.env`:
 ```
 TWINBASE_API_GITHUB_TOKEN=
-TWINBASE_API_HASHED_PASSWORD=
-TWINBASE_API_SECRET_KEY=
 IAA_OWNER_DID=
 ```
 
