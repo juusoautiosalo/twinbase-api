@@ -17,7 +17,6 @@ import os
 from git import Repo
 import shutil
 import json
-import iaa
 
 twinbase_repourl = "https://github.com/juusoautiosalo/twinbase-smart-city"
 reponame = "juusoautiosalo/twinbase-smart-city"
@@ -93,27 +92,6 @@ def overridden_redoc():
 @app.get("/")
 def read_root():
     return {"This is a ": "Twinbase API", "See documentation in subfolder": "/docs"}
-
-
-@app.get("/update")
-def update():
-    listurl = baseurl + "/" + "/index.json"
-    r = requests.get(listurl)
-    twins = r.json()["twins"]
-    for twin in twins:
-        print("\nChecking " + twin["name"])
-        # pprint.pprint(twin)
-        try:
-            doc = dtweb.client.fetch_dt_doc(twin["dt-id"])
-        except:
-            print(
-                "This twin is not working properly. Probably the DTID is not working."
-            )
-            pass
-        filters = iaa.get_location_filters_for(doc)
-        iaa.configure(twin, filters)
-
-    return {"detail": "Update is not working yet :)"}
 
 
 @app.get("/twins")
@@ -284,7 +262,3 @@ def delete_twin(local_id: str):
 
     shutil.rmtree(gitdir)
     return "Removed " + twin["name"]
-
-
-# Update conf file at startup
-update()

@@ -4,21 +4,45 @@ services:
   twinbase-api:
     container_name: twinbase-api
     image: twinbase-api:1.0.0
+    restart: always
+    init: true
     build:
       context: .
     environment:
       SECRET_KEY: ${TWINBASE_API_SECRET_KEY}
       HASHED_PASSWORD: ${TWINBASE_API_HASHED_PASSWORD}
       GITHUB_TOKEN: ${TWINBASE_API_GITHUB_TOKEN}
-      OWNER_DID: ${TWINBASE_API_OWNER_DID}
-      IAA_CONF_FILE: /iaa_config/iaa.conf
-      PROXY_PASS: http://127.0.0.1:9000
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./main.py:/code/main.py
-      - iaa_config:/iaa_config
-    command: uvicorn --host 0.0.0.0 --port 8000 --reload main:app
 
-volumes:
-  iaa_config:
+  iaa-configurator:
+    container_name: iaa-configurator
+    image: iaa-configurator:1.0.0
+    init: true
+    build:
+      context: .
+      dockerfile: Dockerfile-IAA
+    environment:
+      OWNER_DID: ${IAA_OWNER_DID}
+      IAA_CONF_FILE: /iaa_config/iaa.conf
+      PROXY_PASS: http://twinbase-api:8000
+    volumes:
+      - ./iaa_config:/iaa_config
+
+  ssi-proxy:
+    container_name: ssi-proxy
+    image: ssi-proxy:1.0.0
+    restart: always
+    init: true
+    build:
+      context: ../privacy-preserving-self-sovereign-identities
+    depends_on:
+      iaa-configurator:
+        condition: service_completed_successfully
+    environment:
+      IAA_CONF_FILE: /iaa_config/iaa.conf
+      IAA_ADDRESS: "0.0.0.0"
+      IAA_PORT: 9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./iaa_config:/iaa_config:ro
+    command: python3 py-verifier/IAA/iaa.py

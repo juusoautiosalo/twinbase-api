@@ -13,7 +13,7 @@ COPY requirements.txt requirements.txt
 RUN python -m pip install -r requirements.txt
 
 # Copy necessary files
-COPY main.py favicon.ico ./
+COPY iaa.py .
 
 # Start app with uvicorn
-CMD uvicorn --host 0.0.0.0 --port 8000 main:app
+CMD python iaa.py

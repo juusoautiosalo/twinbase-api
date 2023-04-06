@@ -1,5 +1,8 @@
 .PHONY: requirements check-venv
 
+update-iaa:
+	docker compose run iaa-configurator
+	docker compose restart ssi-proxy
 
 check-venv:
 	@test -n "$(VIRTUAL_ENV)" && \

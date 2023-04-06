@@ -1,7 +1,9 @@
 import os
 import json
 
+import requests
 from pyld import jsonld
+import dtweb
 
 IAA_CONF_FILE = os.getenv("IAA_CONF_FILE", "IAA.conf")
 OWNER_DID = os.getenv("OWNER_DID", "did:self:1234oiuerhg98043n9hve")
@@ -10,6 +12,8 @@ PROXY_PASS = os.getenv("PROXY_PASS", "http://127.0.0.1:8000")
 LD_ACCESS_REQUIREMENTS = "https://twinschema.org/accessRequirements"
 LD_LOCATION = "http://www.w3.org/2003/01/geo/wgs84_pos#location"
 LD_NEIGHBOURHOOD = "https://saref.etsi.org/saref4city/Neighbourhood"
+
+BASE_URL = "https://juusoautiosalo.github.io/twinbase-smart-city"
 
 # Initialize a conf file
 iaa_conf = {
@@ -54,15 +58,37 @@ def get_conf_twin_template() -> dict:
     }
 
 
-def configure(twin: dict, filters: list[str]) -> None:
-    """Define twin conf"""
-
+def update() -> None:
     try:
         with open(IAA_CONF_FILE, "r") as jsonfiler:
             conf = json.load(jsonfiler)
     except FileNotFoundError:
         print("IAA.conf not found, creating new from template.")
         conf = iaa_conf
+
+    listurl = BASE_URL + "/" + "/index.json"
+    r = requests.get(listurl)
+    twins = r.json()["twins"]
+
+    for twin in twins:
+        print("\nChecking " + twin["name"])
+        # pprint.pprint(twin)
+        try:
+            doc = dtweb.client.fetch_dt_doc(twin["dt-id"])
+        except:
+            print(
+                "This twin is not working properly. Probably the DTID is not working."
+            )
+            pass
+        filters = get_location_filters_for(doc)
+        configure(conf, twin, filters)
+
+    with open(IAA_CONF_FILE, "w", encoding="utf-8") as jsonfilew:
+        json.dump(conf, jsonfilew, indent=4, ensure_ascii=False)
+
+
+def configure(conf: dict, twin: dict, filters: list[str]) -> None:
+    """Define twin conf"""
 
     conf_twin = get_conf_twin_template()
     print("Conf template: " + str(conf_twin))
@@ -74,9 +100,6 @@ def configure(twin: dict, filters: list[str]) -> None:
 
     local_id = twin["dt-id"].split("/")[3]
     conf["resources"]["/twins/" + local_id] = conf_twin
-
-    with open(IAA_CONF_FILE, "w", encoding="utf-8") as jsonfilew:
-        json.dump(conf, jsonfilew, indent=4, ensure_ascii=False)
 
     print(conf_twin)
 
@@ -112,3 +135,8 @@ def get_location_filters_for(document: dict) -> list[str]:
                 print("Appended neighbourhood filter.")
 
     return filters
+
+
+if __name__ == "__main__":
+    # Update conf file at startup
+    update()
