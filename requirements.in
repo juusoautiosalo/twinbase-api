@@ -1,0 +1,7 @@
+GitPython
+# json-server.py
+fastapi
+uvicorn[standard]
+dtweb
+requests
+PyLD==2.0.3
