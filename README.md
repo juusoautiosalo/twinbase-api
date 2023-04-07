@@ -55,6 +55,11 @@ make update-iaa
 docker compose down
 ```
 
+### Remove all unused docker images
+```
+docker image prune --all
+```
+
 ## Development
 
 Prerequisites
