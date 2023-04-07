@@ -78,10 +78,26 @@ Prerequisites
 python3 -m venv venv
 source venv/bin/activate
 
-# Install pip-tools to manage requiremenets
+# Install pip-tools to manage requirements
 make pip-tools
 
 # Install requirements to virtual enviroment with pip-tools
+make sync
+```
+
+### Build and run Twinbase API with docker
+```
+docker compose build twinbase-api && docker compose run --rm twinbase-api
+```
+
+### Edit python library requirements
+Edit the requirements in `requirements.in`
+
+```sh
+# Update requirement files
+make requirements
+
+# Install requirements
 make sync
 ```
 
@@ -91,7 +107,7 @@ See the code (main.py) to see what you need: `os.getenv('ENV_VARIABLE_X')` means
 
 
 ### Run server
-```
+```sh
 # Development:
 uvicorn main:app --reload
 
