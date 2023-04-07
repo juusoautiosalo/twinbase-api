@@ -71,8 +71,8 @@ Prerequisites
 
 ```sh
 # Create and activate virtual environment (recommended)
-python3 -m venv env
-source env/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 
 # Install pip-tools to manage requiremenets
 make pip-tools
