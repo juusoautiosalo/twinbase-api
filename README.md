@@ -50,6 +50,11 @@ Run following on host machine:
 make update-iaa
 ```
 
+### Stop services
+```
+docker compose down
+```
+
 ## Development
 
 Prerequisites
