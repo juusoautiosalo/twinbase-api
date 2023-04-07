@@ -9,6 +9,8 @@ services:
     build:
       context: .
     environment:
+      TWINBASE_REPO_URL: ${TWINBASE_API_TWINBASE_REPO_URL}
+      GITHUB_USERNAME: ${TWINBASE_API_GITHUB_USERNAME}
       GITHUB_TOKEN: ${TWINBASE_API_GITHUB_TOKEN}
 
   iaa-configurator:

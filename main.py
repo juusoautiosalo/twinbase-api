@@ -17,13 +17,25 @@ import os
 from git import Repo
 import shutil
 import json
+import yaml
 
-twinbase_repourl = "https://github.com/juusoautiosalo/twinbase-smart-city"
-reponame = "juusoautiosalo/twinbase-smart-city"
-baseurl = "https://juusoautiosalo.github.io/twinbase-smart-city"
+twinbase_repo_url = os.getenv("TWINBASE_REPO_URL", "fail")
+if twinbase_repo_url == "fail":
+    print("Please set environment variable: TWINBASE_REPO_URL")
+    exit()
+reponame = twinbase_repo_url.split("/")[3] + "/" + twinbase_repo_url.split("/")[4]
+r = requests.get(
+    "https://raw.githubusercontent.com/" + reponame + "/main/docs/index.yaml"
+)
+r.raise_for_status()
+basedoc = yaml.load(r.text, Loader=yaml.FullLoader)
+baseurl = basedoc["baseurl"]
 
 # GitHub setup https://stackoverflow.com/questions/44784828/gitpython-git-authentication-using-user-and-password
-username = "juusoautiosalo"
+username = os.getenv("GITHUB_USERNAME")
+if not username:
+    print("Please set environment variable: GITHUB_USERNAME")
+    exit()
 password = os.getenv("GITHUB_TOKEN")
 if not password:
     print("Twinbase API WARNING: GitHub token not set. SSH may still work.")
