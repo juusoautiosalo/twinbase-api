@@ -169,8 +169,8 @@ def update_twin(local_id: str, patch: dict):
             repo = Repo(gitdir)
     assert not repo.bare
 
-    repo.config_writer().set_value("user", "name", "Juuso Autiosalo").release()
-    repo.config_writer().set_value("user", "email", "juuso.autiosalo@iki.fi").release()
+    repo.config_writer().set_value("user", "name", "twinbase-bot").release()
+    repo.config_writer().set_value("user", "email", "bot@twinbase.org").release()
 
     twindoc_filepath = gitdir + "/docs/" + local_id + "/index.json"
     with open(twindoc_filepath, "w") as jsonfilew:
