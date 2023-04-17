@@ -8,7 +8,7 @@ Developing an HTTP API for Twinbase
 ```sh
 git clone https://gitlab.com/JuusoAut/privacy-preserving-self-sovereign-identities.git
 
-git clone --branch no-auth https://github.com/juusoautiosalo/twinbase-api.git
+git clone https://github.com/juusoautiosalo/twinbase-api.git
 
 cd twinbase-api
 ```
