@@ -1,23 +1,19 @@
 # Run in bash: uvicorn main:app --reload
 # Run in localhost: uvicorn main:app --reload --host localhost
 
-from typing import Union
-
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from pydantic import BaseModel, Field
+import json
+import os
+import shutil
+import uuid
 
 import dtweb
 import requests
-import uuid
-import pprint
-
-import os
-from git import Repo
-import shutil
-import json
 import yaml
+from fastapi import FastAPI
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import FileResponse
+from git import Repo
+from pydantic import BaseModel, Field
 
 twinbase_repo_url = os.getenv("TWINBASE_REPO_URL", "fail")
 if twinbase_repo_url == "fail":
